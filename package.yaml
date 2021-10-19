@@ -1,0 +1,41 @@
+name:        simple-amount
+version:     0.1.0
+license:     BSD3
+author:      John Wiegley
+maintainer:  johnw@newartisans.com
+description: Fractional amounts represented by rational numbers.
+
+dependencies:
+  - base >= 4.5 && < 5.0
+  - aeson
+  - data-default
+  - lens
+  - pretty-show
+  - pretty
+  - profunctors
+  - split
+  - text
+  - time
+  - transformers
+
+library:
+  source-dirs: src
+  c-sources:
+    - src/mpfr_printf.c
+  extra-libraries:
+    - mpfr
+    - gmp
+  exposed-modules:
+    - Amount
+
+tests:
+  simple-amount-tests:
+    main: Main.hs
+    source-dirs: test
+    dependencies:
+      - simple-amount
+      - HUnit
+      - hedgehog
+      - tasty
+      - tasty-hedgehog
+      - tasty-hunit
