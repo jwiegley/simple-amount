@@ -10,21 +10,13 @@
 
 module Amount
   ( Amount (..),
-    Amount64 (..),
     _Amount,
-    _Amount64,
     rounded,
-    rounded64,
     thousands,
-    thousands64,
     renderAmount,
-    renderAmount64,
     normalizeAmount,
-    normalizeAmount64,
     showAmount,
-    showAmount64,
     amountToString,
-    amount64ToString,
     mpfr_RNDN,
     mpfr_RNDZ,
     mpfr_RNDU,
@@ -44,7 +36,6 @@ import Data.Coerce
 import Data.Data
 import Data.Default
 import Data.Function (on)
-import Data.Int (Int64)
 import Data.List (intercalate)
 import Data.List.Split
 import Data.Profunctor
@@ -75,25 +66,9 @@ mpfr_RNDNA = 6 -- round to nearest, with ties away from zero (mpfr_round)
 
 foreign import ccall unsafe "mpfr_free_str" c'mpfr_free_str :: CString -> IO ()
 
-foreign import ccall unsafe "ratio_int64_to_str"
-  c'ratio_int64_to_str ::
-    CLong -> CULong -> CUInt -> CSize -> Ptr CString -> IO ()
-
 foreign import ccall unsafe "rational_to_str"
   c'rational_to_str ::
     CString -> CUInt -> CSize -> Ptr CString -> IO ()
-
-newtype Amount64 (dec :: Nat) = Amount64 {getAmount64 :: Ratio Int64}
-  deriving
-    ( Generic,
-      Data,
-      Typeable,
-      Ord,
-      Num,
-      Fractional,
-      Real,
-      RealFrac
-    )
 
 newtype Amount (dec :: Nat) = Amount {getAmount :: Rational}
   deriving
@@ -110,29 +85,8 @@ newtype Amount (dec :: Nat) = Amount {getAmount :: Rational}
 instance Default (Amount n) where
   def = 0
 
-instance Default (Amount64 n) where
-  def = 0
-
 instance KnownNat n => PrettyVal (Amount n) where
   prettyVal = P.String . show
-
-instance KnownNat n => PrettyVal (Amount64 n) where
-  prettyVal = P.String . show
-
-showAmount64 :: forall n. KnownNat n => CUInt -> Amount64 n -> String
-showAmount64 rnd (Amount64 r) =
-  unsafePerformIO $
-    alloca $ \bufPtr -> do
-      c'ratio_int64_to_str
-        (CLong (numerator r))
-        (CULong (fromIntegral (denominator r)))
-        rnd
-        (CSize (fromIntegral (natVal (Proxy :: Proxy n))))
-        bufPtr
-      buf <- peek bufPtr
-      str <- peekCString buf
-      c'mpfr_free_str buf
-      return str
 
 showAmount :: forall n. KnownNat n => CUInt -> Amount n -> String
 showAmount rnd (Amount r) =
@@ -154,14 +108,8 @@ showAmount rnd (Amount r) =
 instance KnownNat n => Eq (Amount n) where
   (==) = (==) `on` show
 
-instance KnownNat n => Eq (Amount64 n) where
-  (==) = (==) `on` show
-
 instance KnownNat n => Show (Amount n) where
   show = amountToString 2
-
-instance KnownNat n => Show (Amount64 n) where
-  show = amount64ToString 2
 
 instance KnownNat n => Read (Amount n) where
   readsPrec _d = \case
@@ -177,38 +125,14 @@ instance KnownNat n => Read (Amount n) where
              in [(Amount (read (num ++ den') % 10 ^ length den'), rem')]
           xs -> [(Amount (read num % 1), xs)]
 
-instance KnownNat n => Read (Amount64 n) where
-  readsPrec _d = \case
-    '-' : xs -> map (\(x, y) -> (negate x, y)) (readNum xs)
-    xs -> readNum xs
-    where
-      readNum r = case takeWhile isDigit r of
-        [] -> error $ "Not an amount: " ++ r
-        num -> case dropWhile isDigit r of
-          ('.' : den) ->
-            let den' = takeWhile isDigit den
-                rem' = dropWhile isDigit den
-             in [(Amount64 (read (num ++ den') % 10 ^ length den'), rem')]
-          xs -> [(Amount64 (read num % 1), xs)]
-
 instance KnownNat n => Render (Amount n) where
-  rendered = text . show
-
-instance KnownNat n => Render (Amount64 n) where
   rendered = text . show
 
 instance KnownNat n => ToJSON (Amount n) where
   toJSON = Number . fromRational . toRational . getAmount
 
-instance KnownNat n => ToJSON (Amount64 n) where
-  toJSON = Number . fromRational . toRational . getAmount64
-
 instance KnownNat n => FromJSON (Amount n) where
   parseJSON (Number n) = pure $ Amount (fromRational (toRational n))
-  parseJSON v = error $ "Expected Amount, saw: " ++ show v
-
-instance KnownNat n => FromJSON (Amount64 n) where
-  parseJSON (Number n) = pure $ Amount64 (fromRational (toRational n))
   parseJSON v = error $ "Expected Amount, saw: " ++ show v
 
 -- _Amount :: KnownNat n => Prism' String (Amount n)
@@ -218,24 +142,12 @@ _Amount ::
   p String (f String)
 _Amount = dimap read (fmap show)
 
-_Amount64 ::
-  (KnownNat n, Choice p, Applicative f) =>
-  p (Amount64 n) (f (Amount64 n)) ->
-  p String (f String)
-_Amount64 = dimap read (fmap show)
-
 -- rounded :: (KnownNat m, KnownNat n) => Iso' (Amount n) (Amount m)
 rounded ::
   (Profunctor p, Functor f) =>
   p (Amount m) (f (Amount m)) ->
   p (Amount n) (f (Amount n))
 rounded = dimap coerce (fmap coerce)
-
-rounded64 ::
-  (Profunctor p, Functor f) =>
-  p (Amount64 m) (f (Amount64 m)) ->
-  p (Amount64 n) (f (Amount64 n))
-rounded64 = dimap coerce (fmap coerce)
 
 touchup :: String -> String
 touchup s
@@ -252,9 +164,6 @@ cleanup m t
 
 amountToString :: KnownNat n => Int -> Amount n -> String
 amountToString n = touchup . cleanup n . showAmount mpfr_RNDNA
-
-amount64ToString :: KnownNat n => Int -> Amount64 n -> String
-amount64ToString n = touchup . cleanup n . showAmount64 mpfr_RNDNA
 
 thousands_f :: forall n f. (KnownNat n, RealFrac (f n)) => (Int -> f n -> String) -> f n -> String
 thousands_f f d = intercalate "." $ case splitOn "." str of
@@ -283,26 +192,14 @@ thousands_f f d = intercalate "." $ case splitOn "." str of
 thousands :: forall n. KnownNat n => Amount n -> String
 thousands = thousands_f amountToString
 
-thousands64 :: forall n. KnownNat n => Amount64 n -> String
-thousands64 = thousands_f amount64ToString
-
 renderAmount :: KnownNat n => Amount n -> String
 renderAmount d
   | fromIntegral (floor d :: Int) == d =
     thousands @0 (coerce d)
 renderAmount d = thousands d
 
-renderAmount64 :: KnownNat n => Amount64 n -> String
-renderAmount64 d
-  | fromIntegral (floor d :: Int) == d =
-    thousands64 @0 (coerce d)
-renderAmount64 d = thousands64 d
-
 normalizeAmount :: KnownNat n => CUInt -> Amount n -> Amount n
 normalizeAmount = (read .) . showAmount
-
-normalizeAmount64 :: KnownNat n => CUInt -> Amount64 n -> Amount64 n
-normalizeAmount64 = (read .) . showAmount64
 
 -- Given a way of project a "count" from an element, an amount, and a list of
 -- elements, divide the given amount among the elements each according to its

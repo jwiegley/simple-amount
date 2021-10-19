@@ -1,4 +1,4 @@
-{ ghcCompiler ? "ghc8107"
+{ compiler ? "ghc8107"
 
 , rev    ? "a3a23d9599b0a82e333ad91db2cdc479313ce154"
 , sha256 ? "05xmgrrnw6j39lh3d48kg064z510i0w5vvrm1s5cdwhdc2fkspjq"
@@ -13,10 +13,10 @@
 , mkDerivation ? null
 }:
 
-let haskellPackages = pkgs.haskell.packages.${ghcCompiler};
+let haskellPackages = pkgs.haskell.packages.${compiler};
 
 in haskellPackages.developPackage rec {
-  name = "haskell-${ghcCompiler}-simple-amount";
+  name = "haskell-${compiler}-simple-amount";
   root = ./.;
 
   source-overrides = {};

@@ -16,8 +16,7 @@ main =
   defaultMain $
     testGroup
       "simple-amount"
-      [ testProperty "basic properties" prop_basic,
-        testProperty "basic64 properties" prop_basic64
+      [ testProperty "basic properties" prop_basic
       ]
 
 prop_basic :: Property
@@ -31,15 +30,3 @@ prop_basic = property $ do
       (%) <$> Gen.integral (Range.linear 0 1_000_000_000)
         <*> Gen.integral (Range.linear 1 1_000_000_000)
   diff ((Amount x :: Amount 6) + Amount y) (>=) 0
-
-prop_basic64 :: Property
-prop_basic64 = property $ do
-  x <-
-    forAll $
-      (%) <$> Gen.int64 (Range.linear 0 1_000_000_000)
-        <*> Gen.int64 (Range.linear 1 1_000_000_000)
-  y <-
-    forAll $
-      (%) <$> Gen.int64 (Range.linear 0 1_000_000_000)
-        <*> Gen.int64 (Range.linear 1 1_000_000_000)
-  diff ((Amount64 x :: Amount64 6) + Amount64 y) (>=) 0

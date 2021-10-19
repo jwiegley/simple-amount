@@ -5,7 +5,7 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           simple-amount
-version:        0.1.0
+version:        0.2.0
 description:    Fractional amounts represented by rational numbers.
 author:         John Wiegley
 maintainer:     johnw@newartisans.com
@@ -52,7 +52,6 @@ test-suite simple-amount-tests
     , base >=4.5 && <5.0
     , data-default
     , hedgehog
-    , here
     , lens
     , pretty
     , pretty-show
