@@ -1,49 +1,52 @@
 {
-  description = "simpl-amount";
+  description = "Simple-Amount";
 
-  inputs.nixpkgs.url = "github:jwiegley/nixpkgs";
+  inputs = {
+    nixpkgs.follows = "haskellNix/nixpkgs-unstable";
+    haskellNix.url = "github:input-output-hk/haskell.nix";
+    flake-utils.url = "github:numtide/flake-utils";
+  };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, flake-utils, haskellNix }:
+    flake-utils.lib.eachDefaultSystem (system:
     let
-      version = "0.2.0";
+      pkgs = import nixpkgs {
+        inherit system overlays;
+        inherit (haskellNix) config;
+      };
+      flake = pkgs.simple-amount.flake {
+      };
+      overlays = [ haskellNix.overlay
+        (final: prev: {
+          simple-amount =
+            final.haskell-nix.project' {
+              src = ./.;
+              compiler-nix-name = "ghc963";
+              shell.tools = {
+                cabal = {};
+                haskell-language-server = {};
+                # hlint = {};
+              };
+              shell.buildInputs = with pkgs; [
+                pkg-config
+              ];
+            };
+        })
+      ];
+    in flake // {
+      packages.default = flake.packages."simple-amount:exe:simple-amount";
 
-      compiler = "ghc8107";
+      devShell = pkgs.haskellPackages.shellFor {
+        packages = with pkgs.haskellPackages; p: [
+          cabal-install
+          haskell-language-server
+        ];
 
-      supportedSystems = [ "x86_64-linux" "x86_64-darwin"
-                           "aarch64-linux" "aarch64-darwin" ];
-      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-      nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
-    in {
-      packages = forAllSystems (system:
-        let
-          pkgs = nixpkgsFor.${system};
-          haskellPackages = pkgs.haskell.packages.${compiler};
-        in {
-          simple-amount = haskellPackages.callCabal2nix "simple-amount" ./. {};
-        });
-      defaultPackage = forAllSystems (system: self.packages.${system}.simple-amount);
-      checks = self.packages;
+        buildInputs = with pkgs.haskellPackages; [
+          cabal-install
+        ];
 
-      devShell = forAllSystems (system:
-        let
-          pkgs = nixpkgsFor.${system};
-          haskellPackages = pkgs.haskell.packages.${compiler};
-        in haskellPackages.shellFor {
-          packages = p: [self.packages.${system}.simple-amount];
-
-          withHoogle = true;
-          buildInputs = with haskellPackages; [
-            hasktags
-            hpack
-            ormolu
-          ];
-
-          shellHook = ''
-            CABAL_REPL="${pkgs.cabal-install}/bin/cabal repl \
-                            --extra-lib-dirs=${pkgs.mpfr.out}/lib \
-                            --extra-lib-dirs=${pkgs.gmp.out}/lib"
-            export CABAL_REPL
-          '';
-        });
-    };
+        withHoogle = true;
+      };
+    });
 }
