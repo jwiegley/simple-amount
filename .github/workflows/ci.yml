@@ -1,0 +1,127 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  nix-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: cachix/cachix-action@v15
+        with:
+          name: simple-amount
+          skipPush: true
+        continue-on-error: true
+      - name: Build
+        run: nix build --no-warn-dirty
+
+  nix-flake-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - name: Flake check
+        run: nix flake check --no-warn-dirty --allow-import-from-derivation
+
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - name: Check Haskell formatting
+        run: |
+          nix develop --command bash -c \
+            "find src test bench -name '*.hs' -exec fourmolu --mode check {} +"
+      - name: Check C formatting
+        run: |
+          nix develop --command bash -c \
+            "find src -name '*.c' -o -name '*.h' | xargs clang-format --dry-run --Werror"
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - name: hlint
+        run: nix develop --command bash -c "hlint src/ test/ bench/"
+      - name: cppcheck
+        run: |
+          nix develop --command bash -c \
+            "cppcheck --enable=all --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction src/mpfr_printf.c"
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - name: Run tests
+        run: nix develop --command bash -c "cabal test -j --test-show-details=failures"
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - name: Generate coverage report
+        run: nix develop --command bash -c "cabal test --enable-coverage"
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: dist-newstyle/**/hpc/
+
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - name: Run benchmarks
+        run: |
+          nix develop --command bash -c \
+            "cabal bench --benchmark-options='+RTS -T -RTS --csv bench-results.csv'"
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: bench-results.csv
+
+  warnings:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - name: Build with -Werror (via nix build)
+        run: nix build --no-warn-dirty
+
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - name: Property-based fuzz testing
+        run: |
+          nix develop --command bash -c \
+            "cabal test --test-options='--hedgehog-tests 10000'"

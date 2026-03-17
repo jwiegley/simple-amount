@@ -1,0 +1,30 @@
+pre-commit:
+  parallel: true
+  commands:
+    fourmolu-check:
+      glob: "*.hs"
+      run: fourmolu --mode check {staged_files}
+    clang-format-check:
+      glob: "*.c"
+      run: clang-format --dry-run --Werror {staged_files}
+    hlint:
+      glob: "*.hs"
+      run: hlint {staged_files}
+    cppcheck:
+      glob: "*.c"
+      run: cppcheck --enable=all --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=normalCheckLevelMaxBranches --suppress=checkersReport {staged_files}
+    nix-build:
+      glob: "*.{hs,c,nix,yaml,cabal}"
+      run: nix build --no-warn-dirty 2>&1
+    nix-flake-check:
+      glob: "*.{hs,c,nix,yaml,cabal}"
+      run: nix flake check --no-warn-dirty --allow-import-from-derivation 2>&1
+    cabal-test:
+      glob: "*.{hs,c}"
+      run: cabal test -j --builddir=dist-test --test-show-details=failures 2>&1
+    coverage-check:
+      glob: "*.{hs,c}"
+      run: bash scripts/check-coverage.sh
+    perf-check:
+      glob: "*.{hs,c}"
+      run: bash scripts/check-perf.sh
