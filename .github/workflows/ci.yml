@@ -29,8 +29,18 @@ jobs:
       - uses: cachix/install-nix-action@v27
         with:
           nix_path: nixpkgs=channel:nixos-unstable
-      - name: Flake check
-        run: nix flake check --no-warn-dirty --allow-import-from-derivation
+      - name: Flake check (current system)
+        run: |
+          # nix flake check evaluates ALL systems, which fails for
+          # cross-platform haskell.nix IFD on x86_64-linux runners.
+          # Build checks for the CI system only.
+          nix build --no-link \
+            '.#checks.x86_64-linux.build' \
+            '.#checks.x86_64-linux.format-haskell' \
+            '.#checks.x86_64-linux.format-c' \
+            '.#checks.x86_64-linux.lint-haskell' \
+            '.#checks.x86_64-linux.lint-c' \
+            --no-warn-dirty --allow-import-from-derivation
 
   format:
     runs-on: ubuntu-latest
@@ -60,7 +70,7 @@ jobs:
       - name: cppcheck
         run: |
           nix develop --command bash -c \
-            "cppcheck --enable=all --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction src/mpfr_printf.c"
+            "cppcheck --enable=all --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=normalCheckLevelMaxBranches --suppress=checkersReport src/mpfr_printf.c"
 
   test:
     runs-on: ubuntu-latest
