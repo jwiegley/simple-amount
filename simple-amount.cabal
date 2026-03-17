@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.4.
+-- This file has been generated from package.yaml by hpack version 0.38.3.
 --
 -- see: https://github.com/sol/hpack
 
@@ -20,6 +20,7 @@ library
       Paths_simple_amount
   hs-source-dirs:
       src
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
   c-sources:
       src/mpfr_printf.c
   extra-libraries:
@@ -29,6 +30,7 @@ library
       aeson
     , base >=4.5 && <5.0
     , data-default
+    , deepseq
     , lens
     , pretty
     , pretty-show
@@ -46,11 +48,13 @@ test-suite simple-amount-tests
       Paths_simple_amount
   hs-source-dirs:
       test
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -threaded -rtsopts "-with-rtsopts=-N"
   build-depends:
       HUnit
     , aeson
     , base >=4.5 && <5.0
     , data-default
+    , deepseq
     , hedgehog
     , lens
     , pretty
@@ -61,6 +65,32 @@ test-suite simple-amount-tests
     , tasty
     , tasty-hedgehog
     , tasty-hunit
+    , text
+    , time
+    , transformers
+  default-language: Haskell2010
+
+benchmark simple-amount-bench
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      Paths_simple_amount
+  hs-source-dirs:
+      bench
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -threaded -rtsopts "-with-rtsopts=-N"
+  build-depends:
+      aeson
+    , base >=4.5 && <5.0
+    , data-default
+    , deepseq
+    , lens
+    , pretty
+    , pretty-show
+    , profunctors
+    , simple-amount
+    , split
+    , tasty
+    , tasty-bench
     , text
     , time
     , transformers

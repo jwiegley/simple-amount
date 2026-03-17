@@ -1,0 +1,4 @@
+# HLint configuration for simple-amount
+
+# The mpfr_* names deliberately match the C MPFR library API.
+- ignore: {name: "Use camelCase", within: [Amount]}
